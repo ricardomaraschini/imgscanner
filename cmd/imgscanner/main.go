@@ -87,8 +87,6 @@ func main() {
 
 	trivyscan := trivy.New()
 	dispatcher := scanners.NewDispatcher(scancli, scaninf, imginf, sysctx, trivyscan)
-
-	// create controller layer using controller from shipwright-io/image repository.
 	controller := imagecontrollers.NewImage(dispatcher)
 
 	// starts up all informers and waits for their cache to sync up, only then we start the

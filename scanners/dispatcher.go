@@ -21,7 +21,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
@@ -52,9 +51,10 @@ type Dispatcher struct {
 }
 
 // Scanner implments a Scan method and is reponsible for scanning a given container image
-// reference using provided system contexts.
+// reference using provided system contexts. This function should return a list of vulnerability
+// IDs (for example "CVE-2022-0185").
 type Scanner interface {
-	Scan(context.Context, types.ImageReference, []*types.SystemContext) (*runtime.RawExtension, error)
+	Scan(context.Context, types.ImageReference, []*types.SystemContext) ([]string, error)
 }
 
 // NewDispatcher returns a handler for all container image scan operations using trivy.
@@ -171,10 +171,12 @@ func (t *Dispatcher) processImage(
 		return fmt.Errorf("error reading registry system contexts: %w", err)
 	}
 
-	if res, err := t.scanner.Scan(ctx, imgref, sysctxs); err != nil {
+	if vulnerabilities, err := t.scanner.Scan(ctx, imgref, sysctxs); err != nil {
 		scan.PrependFailure(err)
 	} else {
-		scan.Status.Result = res
+		now := metav1.Now()
+		scan.Status.FinishedAt = &now
+		scan.Status.Vulnerabilities = vulnerabilities
 	}
 
 	if _, err := t.scancli.ShipwrightV1beta1().ImageScans().UpdateStatus(

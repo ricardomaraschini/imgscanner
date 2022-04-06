@@ -26,7 +26,8 @@ NAMESPACE ?= shipwright-build
 KO_DOCKER_REPO ?= $(REGISTRY_HOSTNAME)/$(REGISTRY_USERNAME)
 
 # golang flags are exported through the enviroment variables, reaching all targets
-GOFLAGS ?= -v -mod=vendor -ldflags='-Xmain.Version=$(VERSION)'
+GOFLAGS ?= -mod=vendor -ldflags='-Xmain.Version=$(VERSION)'
+CGO_ENABLED ?= 0
 
 .EXPORT_ALL_VARIABLES:
 
@@ -37,6 +38,7 @@ build: $(IMGSCANNER)
 .PHONY: $(IMGSCANNER)
 $(IMGSCANNER):
 	go build \
+		-tags containers_image_openpgp \
 		-o $(IMGSCANNER_BIN) \
 		./cmd/$(IMGSCANNER)
 

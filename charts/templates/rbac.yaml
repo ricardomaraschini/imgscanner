@@ -1,0 +1,59 @@
+---
+apiVersion: v1
+automountServiceAccountToken: true
+kind: ServiceAccount
+metadata:
+  name: imgscanner
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: imgscanner
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - watch
+  - get
+  - list
+- apiGroups: 
+  - ""
+  resources: 
+  - configmaps
+  verbs:
+  - "*"
+- apiGroups:
+  - shipwright.io
+  resources:
+  - images
+  - images/status
+  - imageimports
+  - imageimports/status
+  verbs:
+  - watch
+  - get
+  - list
+- apiGroups:
+  - shipwright.io
+  resources:
+  - imagescans
+  - imagescans/status
+  verbs:
+  - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: imgscanner
+  namespace: {{ .Release.Namespace }}
+subjects:
+- kind: ServiceAccount
+  name: imgscanner
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: imgscanner
+  apiGroup: rbac.authorization.k8s.io

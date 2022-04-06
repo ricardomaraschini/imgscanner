@@ -1,0 +1,32 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: imgscanner
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: imgscanner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: imgscanner
+  template:
+    metadata:
+      labels:
+        app: imgscanner
+    spec:
+      serviceAccountName: imgscanner
+      containers:
+      - name: imgscanner
+        image: {{ .Values.image }}
+        imagePullPolicy: Always
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name

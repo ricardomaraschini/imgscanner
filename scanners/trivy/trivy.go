@@ -17,11 +17,11 @@ package trivy
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 
-	"k8s.io/apimachinery/pkg/runtime"
-
+	trtypes "github.com/aquasecurity/trivy/pkg/types"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
 	"github.com/hashicorp/go-multierror"
@@ -35,6 +35,29 @@ func New() *Trivy {
 	return &Trivy{}
 }
 
+// getEnvironment extracts from the provided system context the environment variables needed to
+// run trivy on the command line as well as sets the environment defaults.
+func (t *Trivy) getEnvironment(sysctx *types.SystemContext) []string {
+	env := []string{"TRIVY_SEVERITY=MEDIUM,HIGH,CRITICAL"}
+	if sysctx == nil {
+		return env
+	}
+
+	if sysctx.DockerInsecureSkipTLSVerify == types.OptionalBoolTrue {
+		env = append(env, "TRIVY_INSECURE=true")
+	}
+
+	if sysctx.DockerAuthConfig == nil {
+		return env
+	}
+
+	return append(
+		env,
+		fmt.Sprintf("TRIVY_USERNAME=%s", sysctx.DockerAuthConfig.Username),
+		fmt.Sprintf("TRIVY_PASSWORD=%s", sysctx.DockerAuthConfig.Password),
+	)
+}
+
 // Scan uses trivy command line utility to scan an image by reference. Uses all provided system
 // contexts when attempting to access the remote image (registry authentication). XXX we most
 // likely will have concurrency problems here as this function may run multiple times at the
@@ -42,7 +65,7 @@ func New() *Trivy {
 // here to avoid these kind of problems).
 func (t *Trivy) Scan(
 	ctx context.Context, imgref types.ImageReference, sysctxs []*types.SystemContext,
-) (*runtime.RawExtension, error) {
+) ([]string, error) {
 	named := imgref.DockerReference()
 	digested, ok := named.(reference.Digested)
 	if !ok {
@@ -51,28 +74,12 @@ func (t *Trivy) Scan(
 
 	var errors *multierror.Error
 	for _, sysctx := range sysctxs {
-		scanenv := []string{}
-		if sysctx != nil {
-			scanenv = append(
-				scanenv,
-				fmt.Sprintf("TRIVY_USERNAME=%s", sysctx.DockerAuthConfig.Username),
-				fmt.Sprintf("TRIVY_PASSWORD=%s", sysctx.DockerAuthConfig.Password),
-			)
-		}
-
-		cmd := exec.Command(
-			"/home/rmarasch/go/bin/trivy",
-			"--quiet",
-			"image",
-			"--format",
-			"json",
-			digested.String(),
-		)
-
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
 
-		cmd.Env = scanenv
+		commandargs := []string{"--quiet", "image", "--format", "json", digested.String()}
+		cmd := exec.Command("/usr/local/bin/trivy", commandargs...)
+		cmd.Env = t.getEnvironment(sysctx)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
@@ -80,7 +87,19 @@ func (t *Trivy) Scan(
 			continue
 		}
 
-		return &runtime.RawExtension{Raw: stdout.Bytes()}, nil
+		var report trtypes.Report
+		if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+			return nil, fmt.Errorf("error unmarshaling report: %w", err)
+		}
+
+		var vulnerabilities []string
+		for _, res := range report.Results {
+			for _, vuln := range res.Vulnerabilities {
+				vulnerabilities = append(vulnerabilities, vuln.VulnerabilityID)
+			}
+		}
+
+		return vulnerabilities, nil
 	}
 	return nil, fmt.Errorf("unable to scan image: %w", errors)
 }

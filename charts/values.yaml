@@ -1,0 +1,2 @@
+# the image to be used when deploying imgscanner.
+image:  "ghcr.io/shipwright-io/imgscanner:latest"

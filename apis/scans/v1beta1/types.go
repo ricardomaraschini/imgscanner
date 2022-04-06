@@ -2,7 +2,6 @@ package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var (
@@ -25,7 +24,7 @@ type ImageScan struct {
 
 // Executed returns true if the scan has already been executed in the past.
 func (s *ImageScan) Executed() bool {
-	return s.Status.Result != nil
+	return s.Status.FinishedAt != nil
 }
 
 // PrependFailure prepends a failure to the scan list of failures. Keep at max MaxScanAttempts
@@ -48,14 +47,11 @@ func (s *ImageScan) HasFailed() bool {
 	return len(s.Status.Failures) >= MaxScanAttempts
 }
 
-// ImageScanStatus hold the status for the last image scan this operator ran. Results of a scan
-// are stored in "free form" by using a runtime.RawExtension. As long as it is an object and can
-// be json marshaled correctly we can store any data structure. This is by design as we may want
-// to support other container scanners in the future and I don't feel like restricting it only
-// to the one implemented during the proof of concept.
+// ImageScanStatus hold the status for the last image scan this operator ran.
 type ImageScanStatus struct {
-	Failures []Failure             `json:"failures,omitempty"`
-	Result   *runtime.RawExtension `json:"result,omitempty"`
+	Failures        []Failure    `json:"failures,omitempty"`
+	FinishedAt      *metav1.Time `json:"finishedAt,omitempty"`
+	Vulnerabilities []string     `json:"vulnerabilities,omitempty"`
 }
 
 // Failure represents a failure during a scan attempt. It is a very generic struct that serves

@@ -112,10 +112,14 @@ func (in *ImageScanStatus) DeepCopyInto(out *ImageScanStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Result != nil {
-		in, out := &in.Result, &out.Result
-		*out = new(runtime.RawExtension)
-		(*in).DeepCopyInto(*out)
+	if in.FinishedAt != nil {
+		in, out := &in.FinishedAt, &out.FinishedAt
+		*out = (*in).DeepCopy()
+	}
+	if in.Vulnerabilities != nil {
+		in, out := &in.Vulnerabilities, &out.Vulnerabilities
+		*out = make([]string, len(*in))
+		copy(*out, *in)
 	}
 	return
 }

@@ -35,8 +35,10 @@ spec:
                       type: string
                     error:
                       type: string
-              result:
-                description: The image scan result
-                nullable: true
-                type: object
-                x-kubernetes-preserve-unknown-fields: true
+              vulnerabilities:
+                description: The list of vulnerabilites found
+                type: array
+                items:
+                  type: string
+              finishedAt:
+                type: string
