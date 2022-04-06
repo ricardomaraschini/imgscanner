@@ -49,9 +49,17 @@ func (s *ImageScan) HasFailed() bool {
 
 // ImageScanStatus hold the status for the last image scan this operator ran.
 type ImageScanStatus struct {
-	Failures        []Failure    `json:"failures,omitempty"`
-	FinishedAt      *metav1.Time `json:"finishedAt,omitempty"`
-	Vulnerabilities []string     `json:"vulnerabilities,omitempty"`
+	Failures        []Failure       `json:"failures,omitempty"`
+	FinishedAt      *metav1.Time    `json:"finishedAt,omitempty"`
+	Vulnerabilities []Vulnerability `json:"vulnerabilities,omitempty"`
+}
+
+// Vulnerability describes a vulnerability found in an image. ID points to a CVE while severity
+// is scanner dependant.
+type Vulnerability struct {
+	ID          string `json:"id"`
+	Severity    string `json:"severity"`
+	Description string `json:"description"`
 }
 
 // Failure represents a failure during a scan attempt. It is a very generic struct that serves

@@ -25,6 +25,8 @@ import (
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
 	"github.com/hashicorp/go-multierror"
+
+	v1b1scans "github.com/ricardomaraschini/imgscanner/apis/scans/v1beta1"
 )
 
 // Trivy scans a container image using trivy command line utility.
@@ -65,7 +67,7 @@ func (t *Trivy) getEnvironment(sysctx *types.SystemContext) []string {
 // here to avoid these kind of problems).
 func (t *Trivy) Scan(
 	ctx context.Context, imgref types.ImageReference, sysctxs []*types.SystemContext,
-) ([]string, error) {
+) ([]v1b1scans.Vulnerability, error) {
 	named := imgref.DockerReference()
 	digested, ok := named.(reference.Digested)
 	if !ok {
@@ -92,10 +94,17 @@ func (t *Trivy) Scan(
 			return nil, fmt.Errorf("error unmarshaling report: %w", err)
 		}
 
-		var vulnerabilities []string
+		var vulnerabilities []v1b1scans.Vulnerability
 		for _, res := range report.Results {
 			for _, vuln := range res.Vulnerabilities {
-				vulnerabilities = append(vulnerabilities, vuln.VulnerabilityID)
+				vulnerabilities = append(
+					vulnerabilities,
+					v1b1scans.Vulnerability{
+						ID:          vuln.VulnerabilityID,
+						Severity:    vuln.Severity,
+						Description: vuln.Title,
+					},
+				)
 			}
 		}
 

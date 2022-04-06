@@ -39,6 +39,13 @@ spec:
                 description: The list of vulnerabilites found
                 type: array
                 items:
-                  type: string
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    severity:
+                      type: string
+                    description:
+                      type: string
               finishedAt:
                 type: string

@@ -54,7 +54,7 @@ type Dispatcher struct {
 // reference using provided system contexts. This function should return a list of vulnerability
 // IDs (for example "CVE-2022-0185").
 type Scanner interface {
-	Scan(context.Context, types.ImageReference, []*types.SystemContext) ([]string, error)
+	Scan(context.Context, types.ImageReference, []*types.SystemContext) ([]v1b1scans.Vulnerability, error)
 }
 
 // NewDispatcher returns a handler for all container image scan operations using trivy.
@@ -150,7 +150,7 @@ func (t *Dispatcher) processImage(
 		return fmt.Errorf("reference does not contain digest: %s", named)
 	}
 
-	scanname := strings.TrimLeft(digested.Digest().String(), "sha256:")
+	scanname := strings.TrimPrefix(digested.Digest().String(), "sha256:")
 	scan, err := t.assureScan(ctx, scanname)
 	if err != nil {
 		return err
