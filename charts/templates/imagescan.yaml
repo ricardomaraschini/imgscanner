@@ -49,3 +49,15 @@ spec:
                       type: string
               finishedAt:
                 type: string
+              references:
+                description: The list images that refer to this image scan
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    uid:
+                      type: string

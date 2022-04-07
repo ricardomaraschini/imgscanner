@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trivy
+package scanners
 
 import (
 	"bytes"
@@ -32,8 +32,8 @@ import (
 // Trivy scans a container image using trivy command line utility.
 type Trivy struct{}
 
-// New returns a handler for all container image scan operations using trivy.
-func New() *Trivy {
+// NewTrivy returns a handler for all container image scan operations using trivy.
+func NewTrivy() *Trivy {
 	return &Trivy{}
 }
 

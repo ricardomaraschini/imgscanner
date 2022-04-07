@@ -2,6 +2,9 @@ package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+
+	imgv1b1 "github.com/shipwright-io/image/infra/images/v1beta1"
 )
 
 var (
@@ -41,6 +44,51 @@ func (s *ImageScan) PrependFailure(err error) {
 	}
 }
 
+// HasReference returns if the ImageScan has a reference to provided Image.
+func (s *ImageScan) HasReference(img *imgv1b1.Image) bool {
+	for _, ref := range s.Status.References {
+		if ref.UID != img.UID {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// HasReferences returns true if the ImageScan contains one or more Image references in its
+// status
+func (s *ImageScan) HasReferences() bool {
+	return len(s.Status.References) > 0
+}
+
+// DeleteReference deletes an Image reference from the list of references.
+func (s *ImageScan) DeleteReference(delref ImageReference) {
+	var newrefs []ImageReference
+	for _, ref := range s.Status.References {
+		if delref.UID == ref.UID {
+			continue
+		}
+		newrefs = append(newrefs, ref)
+	}
+	s.Status.References = newrefs
+}
+
+// AssureReference makes sure that the ImageScan has a reference to provided Image in its status.
+func (s *ImageScan) AssureReference(img *imgv1b1.Image) {
+	if s.HasReference(img) {
+		return
+	}
+
+	s.Status.References = append(
+		s.Status.References,
+		ImageReference{
+			Namespace: img.Namespace,
+			Name:      img.Name,
+			UID:       img.UID,
+		},
+	)
+}
+
 // HasFailed returns if we still have attempts to be executed. i.e. if we have failed more than
 // MaxScanAttempts attempts.
 func (s *ImageScan) HasFailed() bool {
@@ -49,9 +97,17 @@ func (s *ImageScan) HasFailed() bool {
 
 // ImageScanStatus hold the status for the last image scan this operator ran.
 type ImageScanStatus struct {
-	Failures        []Failure       `json:"failures,omitempty"`
-	FinishedAt      *metav1.Time    `json:"finishedAt,omitempty"`
-	Vulnerabilities []Vulnerability `json:"vulnerabilities,omitempty"`
+	Failures        []Failure        `json:"failures,omitempty"`
+	FinishedAt      *metav1.Time     `json:"finishedAt,omitempty"`
+	Vulnerabilities []Vulnerability  `json:"vulnerabilities,omitempty"`
+	References      []ImageReference `json:"references,omitempty"`
+}
+
+// ImageReference holds a reference to a single Shipwright Image object.
+type ImageReference struct {
+	Name      string    `json:"name"`
+	Namespace string    `json:"namespace"`
+	UID       types.UID `json:"uid"`
 }
 
 // Vulnerability describes a vulnerability found in an image. ID points to a CVE while severity

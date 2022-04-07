@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package scanners
+package services
 
 import (
 	"context"
@@ -156,29 +156,24 @@ func (t *Dispatcher) processImage(
 		return err
 	}
 
-	if scan.HasFailed() {
-		klog.Infof("no more attemps to import %q", scanname)
-		return nil
+	if !scan.Executed() && !scan.HasFailed() {
+		sysctxs, err := t.sysctx.SystemContextsFor(
+			ctx, imgref, img.Namespace, img.Spec.Insecure,
+		)
+		if err != nil {
+			return fmt.Errorf("error reading registry system contexts: %w", err)
+		}
+
+		if vulnerabilities, err := t.scanner.Scan(ctx, imgref, sysctxs); err != nil {
+			scan.PrependFailure(err)
+		} else {
+			now := metav1.Now()
+			scan.Status.FinishedAt = &now
+			scan.Status.Vulnerabilities = vulnerabilities
+		}
 	}
 
-	if scan.Executed() {
-		klog.Infof("scan for %q already executed", scanname)
-		return nil
-	}
-
-	sysctxs, err := t.sysctx.SystemContextsFor(ctx, imgref, img.Namespace, img.Spec.Insecure)
-	if err != nil {
-		return fmt.Errorf("error reading registry system contexts: %w", err)
-	}
-
-	if vulnerabilities, err := t.scanner.Scan(ctx, imgref, sysctxs); err != nil {
-		scan.PrependFailure(err)
-	} else {
-		now := metav1.Now()
-		scan.Status.FinishedAt = &now
-		scan.Status.Vulnerabilities = vulnerabilities
-	}
-
+	scan.AssureReference(img)
 	if _, err := t.scancli.ShipwrightV1beta1().ImageScans().UpdateStatus(
 		ctx, scan, metav1.UpdateOptions{},
 	); err != nil {

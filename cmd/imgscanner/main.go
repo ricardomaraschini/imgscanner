@@ -37,8 +37,9 @@ import (
 
 	v1b1clientset "github.com/ricardomaraschini/imgscanner/apis/scans/v1beta1/generated/clientset/versioned"
 	v1b1informers "github.com/ricardomaraschini/imgscanner/apis/scans/v1beta1/generated/informers/externalversions"
+	"github.com/ricardomaraschini/imgscanner/controllers"
 	"github.com/ricardomaraschini/imgscanner/scanners"
-	"github.com/ricardomaraschini/imgscanner/scanners/trivy"
+	"github.com/ricardomaraschini/imgscanner/services"
 )
 
 // Version holds the current binary version. Set at compile time.
@@ -85,9 +86,12 @@ func main() {
 	scaninf := v1b1informers.NewSharedInformerFactory(scancli, time.Minute)
 	sysctx := imageservices.NewSysContext(corinf)
 
-	trivyscan := trivy.New()
-	dispatcher := scanners.NewDispatcher(scancli, scaninf, imginf, sysctx, trivyscan)
-	controller := imagecontrollers.NewImage(dispatcher)
+	trivyscan := scanners.NewTrivy()
+	dispatcher := services.NewDispatcher(scancli, scaninf, imginf, sysctx, trivyscan)
+	scanservice := services.NewImageScan(scancli, scaninf, imginf)
+
+	imgctrl := imagecontrollers.NewImage(dispatcher)
+	scanctrl := controllers.NewImageScan(scanservice)
 
 	// starts up all informers and waits for their cache to sync up, only then we start the
 	// controllers i.e. start to process events from the queue.
@@ -106,7 +110,7 @@ func main() {
 	}
 	klog.Info("caches in sync, moving on.")
 
-	st := imagectrlstarter.New(corcli, controller)
+	st := imagectrlstarter.New(corcli, imgctrl, scanctrl)
 	if err := st.Start(ctx, "imgscanner-leader-election"); err != nil {
 		klog.Errorf("unable to start controllers: %s", err)
 	}
